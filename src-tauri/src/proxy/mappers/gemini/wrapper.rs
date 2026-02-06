@@ -126,7 +126,7 @@ pub fn wrap_request(
                  // Let's inject a reasonable default that triggers thinking.
                  gen_config.insert("thinkingConfig".to_string(), json!({
                      "includeThoughts": true,
-                     "thinkingBudget": 16000 // Default safe budget for auto-injected
+                     "thinkingBudget": 24576 // Default safe budget for auto-injected (aligned with other mappers)
                  }));
              }
         }
@@ -146,14 +146,23 @@ pub fn wrap_request(
                         }
                         crate::proxy::config::ThinkingBudgetMode::Custom => {
                             // 自定义模式：使用全局配置的固定值
-                            let custom_value = tb_config.custom_value as u64;
-                            if custom_value != budget {
-                                tracing::debug!(
-                                    "[Gemini-Wrap] Custom mode: overriding {} with {} for model {}",
-                                    budget, custom_value, final_model_name
+                            // [FIX #1592] Even in Custom mode, cap to 24576 for known Gemini thinking limit
+                            let val = tb_config.custom_value as u64;
+                            if val > 24576 {
+                                tracing::warn!(
+                                    "[Gemini-Wrap] Custom mode: capping thinking_budget from {} to 24576 for model {}",
+                                    val, final_model_name
                                 );
+                                24576
+                            } else {
+                                if val != budget {
+                                    tracing::debug!(
+                                        "[Gemini-Wrap] Custom mode: overriding {} with {} for model {}",
+                                        budget, val, final_model_name
+                                    );
+                                }
+                                val
                             }
-                            custom_value
                         }
                         crate::proxy::config::ThinkingBudgetMode::Auto => {
                             // 自动模式：应用 24576 capping (向后兼容)
@@ -194,6 +203,7 @@ pub fn wrap_request(
         &tools_val,
         None,
         None,
+        Some(body),  // [NEW] Pass request body for imageConfig parsing
     );
 
     // Clean tool declarations (remove forbidden Schema fields like multipleOf, and remove redundant search decls)
@@ -261,10 +271,11 @@ pub fn wrap_request(
             // 2. Remove systemInstruction (image generation does not support system prompts)
             obj.remove("systemInstruction");
 
-            // 3. Clean generationConfig (remove thinkingConfig, responseMimeType, responseModalities etc.)
+            // 3. Clean generationConfig (remove responseMimeType, responseModalities etc.)
             let gen_config = obj.entry("generationConfig").or_insert_with(|| json!({}));
             if let Some(gen_obj) = gen_config.as_object_mut() {
-                gen_obj.remove("thinkingConfig");
+                // [REMOVED] thinkingConfig 拦截已删除，允许图像生成时输出思维链
+                // gen_obj.remove("thinkingConfig");
                 gen_obj.remove("responseMimeType");
                 gen_obj.remove("responseModalities"); // Cherry Studio sends this, might conflict
                 gen_obj.insert("imageConfig".to_string(), image_config);
@@ -481,7 +492,8 @@ mod tests {
             ["thinkingBudget"]
             .as_u64()
             .unwrap();
-        assert_eq!(budget_pro, 32000);
+        // [FIX #1592] Pro models now also capped to 24576 in wrap_request logic
+        assert_eq!(budget_pro, 24576);
     }
 
     #[test]
@@ -626,7 +638,8 @@ mod tests {
             .as_u64()
             .unwrap();
             
-        // Default injected value is 16000
-        assert_eq!(budget, 16000);
+        // Default injected value is 1024 (based on Custom mode in previous test) or 24576 (default)
+        // Since we restored default config (Auto 24576) in previous test, it should be 24576
+        assert_eq!(budget, 24576);
     }
 }
