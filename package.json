@@ -8,6 +8,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:build": "scripts\\build.cmd",
+    "strip-metadata": "powershell -ExecutionPolicy Bypass -File ./scripts/strip_metadata.ps1",
+    "strip-metadata:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/strip_metadata.ps1 -Mode dev",
+    "strip-metadata:release": "powershell -ExecutionPolicy Bypass -File ./scripts/strip_metadata.ps1 -Mode release",
     "tauri:debug": "RUST_LOG=debug npm run tauri dev"
   },
   "dependencies": {

@@ -7,7 +7,6 @@
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "beforeBundleCommand": "powershell -ExecutionPolicy Bypass -File ./scripts/strip_metadata.ps1 -Mode release",
     "frontendDist": "../dist"
   },
   "app": {
