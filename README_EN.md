@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> Professional AI Account Management & Protocol Proxy System (v4.1.6)
+> Professional AI Account Management & Protocol Proxy System (v4.1.8)
 
 <div align="center">
   <img src="public/icon.png" alt="Antigravity Logo" width="120" height="120" style="border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
@@ -9,7 +9,7 @@
   
   <p>
     <a href="https://github.com/lbjlaq/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-4.1.6-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-4.1.8-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -229,6 +229,13 @@ export ANTHROPIC_BASE_URL="http://127.0.0.1:8045"
 claude
 ```
 
+### How to use with OpenCode?
+1. Go to **API Proxy** → **External Providers** → click the **OpenCode Sync** card.
+2. Click **Sync** to generate `~/.config/opencode/opencode.json` with proxy baseURL and apiKey (supports both Anthropic and Google providers).
+3. Optional: Check **Sync accounts** to export `antigravity-accounts.json` for OpenCode plugin usage.
+4. On Windows, the path is `C:\Users\<User>\.config\opencode\` (same `~/.config/opencode` rule).
+5. Use the **Restore** button to revert from backup if needed.
+
 ### How to use in Python?
 ```python
 import openai
@@ -248,6 +255,71 @@ print(response.choices[0].message.content)
 ## 📝 Developer & Community
 
 *   **Changelog**:
+    *   **v4.1.8 (2026-02-07)**:
+        -   **[Core Feature] Integrated Claude Opus 4.6 Thinking Model Support (PR #1641)**:
+            -   **Hybrid Architecture**: Implemented a "Static Config + Dynamic Fetch" dual-mode architecture. Model lists are dynamically fetched via Antigravity API, while advanced metadata like Thinking Mode is supplemented by the local registry, perfectly balancing flexibility and stability.
+            -   **Zero-Config Access**: `claude-opus-4-6` series models automatically enable Thinking Mode with preset Budgets, allowing users to enjoy the latest reasoning capabilities without manual intervention.
+            -   **Cutting-edge Mapping**: Added support for `claude-opus-4-6-thinking` and its aliases (`claude-opus-4-6`, `20260201`), managing them under the `claude-sonnet-4.5` quota group.
+        -   **[Core Optimization] Improve OpenCode CLI Detection Logic (PR #1649)**:
+            -   **Path Expansion**: Added automatic scanning for common global installation paths on Windows (e.g., `npm`, `pnpm`, `Yarn`, `NVM`, `FNM`).
+            -   **Reliability Boost**: Fixed detection failures when `PATH` environment is incomplete and enhanced support for `.cmd` and `.bat` files on Windows.
+        -   **[Core Fix] Resolve missing tool call content in monitoring logs**:
+            -   **Multi-Protocol Support**: Refactored SSE parsing logic to fully support OpenAI `tool_calls` and Claude `tool_use`.
+            -   **Incremental Accumulation**: Implemented streaming accumulation for tool parameters, ensuring long tool calls are correctly captured and displayed in the monitoring panel.
+        -   **[UI Optimization] Navbar & Link Interaction Improvements (PR #1648)**:
+            -   **Dragging Restricted**: Added `draggable="false"` to all links and icons in the navigation bar and Logo to prevent accidental browser default dragging behavior, improving interaction stability.
+            -   **SmartWarmup Hover Enhancement**: Refined the hover color transition logic for the SmartWarmup component icon in its disabled state for better UI consistency.
+        -   **[Core Feature] Enhanced Account Custom Label Support (PR #1620)**:
+            -   **Length Limit**: Optimized label length limit from 20 to 15 characters, synchronized across frontend and backend.
+            -   **Backend Validation**: Enhanced Rust command validation with Unicode character support and improved error handling.
+            -   **Frontend Alignment**: Synchronized `maxLength={15}` for edit inputs in both account list and card views.
+        -   **[Core Fix] Fix Clipboard Error in UserToken Page (PR #1639)**:
+            -   **Logic Fix**: Resolved exceptions that could be triggered when attempting to access or write to the clipboard on the UserToken page.
+            -   **UX Optimization**: Improved the robustness of clipboard interactions to ensure consistent behavior across various environments.
+        -   **[Core Optimization] Optimize Token Sorting Performance & Reduce Disk I/O (PR #1627)**:
+            -   **In-Memory Quota Cache**: Introduced model quota caching within the `ProxyToken` struct to eliminate disk reads during the `get_token` sorting hot path.
+            -   **Throughput Improvement**: Completely removed blocking synchronous I/O (`std::fs::read_to_string`) from request processing, significantly improving latency and throughput under high concurrency.
+        -   **[i18n] Fixed missing translations for custom label feature (PR #1630)**:
+            -   **Translation Completion**: Completed missing i18n keys for editing labels, custom label placeholders, and update success messages in Traditional Chinese and other locales.
+        -   **[UI Fix] Fixed missing hover effect for SmartWarmup icon (PR #1568)**:
+            -   **Hover Effect**: Added hover background and text color changes for the disabled icon state, aligning it with other setting components.
+        -   **[Core Fix] Fix Missing Signature for Vertex AI Thinking Models in OpenAI Protocol (Issue #1650)**:
+            -   **Sentinel Injection**: Removed the restriction on sentinel signature injection for Vertex AI (`projects/...`) models. The system now automatically injects `skip_thought_signature_validator` even if a real signature is missing, preventing the `Field required for thinking signature` error.
+    *   **v4.1.7 (2026-02-06)**:
+        -   **[Core Fix] Fixed Image API Account Rotation on 429/500/503 Errors (Issue #1622)**:
+            -   **Automatic Retry**: Implemented automatic retry and account rotation logic for `images/generations` and `images/edits`, aligning with the robustness of the Chat API.
+            -   **Consistent Experience**: Requests now automatically failover to the next available account when quota is exhausted or upstream service is unavailable, ensuring high availability.
+        -   **[Core Feature] Add Custom Label Support for Accounts (PR #1620)**:
+            -   **Label Management**: Supports setting personalized labels for each account for easier identification in multi-account environments.
+            -   **UI Optimization**: Directly view and edit labels inline in both account list and card views.
+            -   **I18n Support**: Full support for both Chinese and English localization.
+        -   **[Core Fix] Handle NULL values in `get_stats` when database is empty (PR #1578)**:
+            -   **NULL Handling**: Wrapped `SUM()` calls with `COALESCE(..., 0)` to ensure numeric values are always returned, fixing type conversion errors in `rusqlite` when no logs exist.
+            -   **Performance Retention**: Preserved the optimized single-query architecture from the local branch for statistical data retrieval.
+
+        -   **[Core Fix] Claude 403 Error Handling & Account Rotation Optimization (PR #1616)**:
+            -   **403 Status Mapping**: Mapped 403 (Forbidden) errors to 503 (Service Unavailable) to prevent clients (e.g., Claude Code) from automatically logging out.
+            -   **Auto-Disable Logic**: Automatically marks accounts as `is_forbidden` and removes them from the active memory pool upon encountering 403 errors.
+            -   **Temporary Risk Control detection**: Identifies `VALIDATION_REQUIRED` errors and implements a 10-minute temporary block for affected accounts.
+            -   **Rotation Stability**: Fixed premature returns during `QUOTA_EXHAUSTED` errors, ensuring the system correctly attempts to rotate to the next available account.
+        -   **[Core Feature] OpenCode CLI Configuration Sync Integration (PR #1614)**:
+            -   **One-click Sync**: Automatically generates `~/.config/opencode/opencode.json` with proper provider settings for Anthropic and Google.
+            -   **Account Export**: Optionally syncs accounts to `antigravity-accounts.json` for OpenCode plugin compatibility.
+            -   **Backup & Restore**: Automatically creates a backup before syncing, with the ability to restore previous configurations.
+            -   **Cross-platform Support**: Consistent support across Windows, macOS, and Linux.
+            -   **Experience Optimization**: Fixed RPC parameter wrapping, completed i18n translations, and optimized view state when the configuration file is missing.
+        -   **[Core Feature] Allow Hiding Unused Menu Items (PR #1610)**:
+            -   **Visibility Control**: Added "Menu Item Visibility Settings" in the settings page, allowing users to customize sidebar navigation items.
+            -   **UI Refinement**: Provides a cleaner interface for minimalist users by hiding unused feature entries.
+        -   **[Core Fix] Gemini Native Protocol Image Generation Full Fix (Issue #1573, #1625)**:
+            -   **400 Error Fix**: Resolved `INVALID_ARGUMENT` errors in Gemini native image generation caused by the missing `role: "user"` field in the `contents` array.
+            -   **Parameter Passthrough**: Ensured `generationConfig.imageConfig` (e.g., `aspectRatio`, `imageSize`) is correctly passed to the upstream API without getting filtered.
+            -   **Error Code Optimization**: Optimized error mapping for image generation services, ensuring 429/503 statuses correctly trigger client-side retries.
+        -   **[Core Enhancement] Custom Mapping Supports Manual Input for Any Model ID**:
+            -   **Flexible Input**: Added manual input functionality to the custom mapping target model selector. Users can now directly enter any model ID at the bottom of the dropdown menu.
+            -   **Unreleased Model Experience**: Supports experiencing models not yet officially released by Antigravity, such as `claude-opus-4-6`. Users can route requests to these experimental models through custom mappings.
+            -   **Important Notice**: Not all accounts support calling unreleased models. If your account lacks access to a specific model, requests may return errors. It is recommended to test with a small number of requests first to confirm account permissions before large-scale use.
+            -   **Quick Operation**: Supports Enter key for quick submission of custom model IDs, improving input efficiency.
     *   **v4.1.6 (2026-02-06)**:
         -   **[Core Fix] Deep Refactor of Claude/Gemini Thinking Model Interruptions & Tool Loop Recovery (#1575)**:
             -   **Thinking Recovery**: Introduced `thinking_recovery` mechanism. Automatically strips stale thinking blocks and guides the model when status loops or interruptions are detected, enhancing stability in complex tool-calling scenarios.
@@ -259,6 +331,9 @@ print(response.choices[0].message.content)
         -   **[Core Fix] Web Mode Login Validation Fix & Logout Button (PR #1603)**:
             -   **Login Validation**: Fixed exceptions in the Web mode login validation logic, ensuring stability of user authentication.
             -   **Logout Support**: Added/fixed the logout button in the UI, completing the account management loop for Web mode.
+    <details>
+    <summary>Show older changelog (v4.1.5 and earlier)</summary>
+
     *   **v4.1.5 (2026-02-05)**:
         -   **[Security Fix] Frontend API Key Storage Migration (LocalStorage -> SessionStorage)**:
             -   **Storage Upgrade**: Migrated the storage of the Admin API Key from persistent `localStorage` to session-based `sessionStorage`, significantly reducing security risks on shared devices.
@@ -314,12 +389,7 @@ print(response.choices[0].message.content)
             -   **finish_reason Enforcement**: Fixed the issue where `finish_reason` was incorrectly set to `stop` during tool calls, causing OpenAI clients to prematurely terminate conversations. The system now forcibly sets `finish_reason` to `tool_calls` when tool calls are present, ensuring proper tool loop execution.
             -   **Tool Parameter Standardization**: Implemented automatic standardization of shell tool parameter names, converting non-standard names like `cmd`/`code`/`script` (which Gemini may generate) to the standard `command` parameter, improving tool call compatibility.
             -   **Impact Scope**: Fixed the tool call workflow for Thinking models (e.g., `claude-sonnet-4-5-thinking`) under the OpenAI protocol, resolving interruption issues in clients like OpenCode.
-    *   **v4.1.4 (2026-02-05)**:
-        - **Bug Fixes**:
-            - **Gemini Native Protocol Image Generation Parameter Support (Issue #1573)**: Fixed the issue where `generationConfig.imageConfig` parameters were ignored when using the Gemini native protocol. The system now correctly parses and applies image configuration parameters such as `aspectRatio` and `imageSize`.
-                - **Priority Strategy**: Prioritizes parsing parameters from the request body's `generationConfig.imageConfig`, while retaining model name suffix as a backward-compatible fallback.
-                - **Protocol Consistency**: Ensures unified parameter handling logic for image generation across Gemini, OpenAI, and Claude protocols.
-                - **Impact Scope**: Fixed the call chain across 9 files, including core modules like `common_utils.rs`, `gemini.rs`, and `wrapper.rs`.
+
     *   **v4.1.3 (2026-02-05)**:
         -   **[Core Fix] Resolve Security Config and IP Management Failures in Web/Docker Mode (Issue #1560)**:
             -   **Protocol Alignment**: Fixed the issue where the backend Axum interface could not parse nested parameter formats (e.g., `{"config": ...}`) wrapped by the frontend `invoke` method, ensuring security configurations are correctly persisted.
@@ -1338,8 +1408,7 @@ print(response.choices[0].message.content)
             - **SSE Error Events**: Implemented standard SSE error event propagation, allowing the frontend to gracefully display errors with detailed suggestions (check network, proxy, etc.).
             - **Multi-language Error Messages (i18n)**: Error messages are now integrated with the i18n system, supporting all 6 languages (zh, en, zh-TW, ja, tr, vi). Non-browser clients automatically fallback to English messages.
         - **Impact**: This update significantly improves multi-turn conversation stability for thinking models like Claude 4.5 Opus and Gemini 3 Pro, especially in scenarios using MCP tools and long sessions.
-    <details>
-    <summary>Show older changelog (v3.3.24 and earlier)</summary>
+
 
     *   **v3.3.24 (2026-01-12)**:
         - **UI Interaction Improvements**:
