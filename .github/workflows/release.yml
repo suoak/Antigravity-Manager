@@ -63,36 +63,8 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          # Find and strip NSIS installer
-          $nsisDir = "src-tauri/target/release/bundle/nsis"
-          if (Test-Path $nsisDir) {
-            Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" | ForEach-Object {
-              Write-Host "Stripping metadata from: $($_.FullName)"
-              # Clear version info fields
-              npx rcedit $_.FullName --set-version-string "ProductName" ""
-              npx rcedit $_.FullName --set-version-string "FileDescription" ""
-              npx rcedit $_.FullName --set-version-string "CompanyName" ""
-              npx rcedit $_.FullName --set-version-string "LegalCopyright" ""
-              npx rcedit $_.FullName --set-version-string "OriginalFilename" ""
-              npx rcedit $_.FullName --set-product-version "0.0.0"
-              npx rcedit $_.FullName --set-file-version "0.0.0"
-              Write-Host "Done: $($_.Name)"
-            }
-          }
-
-          # Strip main EXE
-          $mainExe = "src-tauri/target/release/antigravity_tools.exe"
-          if (Test-Path $mainExe) {
-            Write-Host "Stripping metadata from: $mainExe"
-            npx rcedit $mainExe --set-version-string "ProductName" ""
-            npx rcedit $mainExe --set-version-string "FileDescription" ""
-            npx rcedit $mainExe --set-version-string "CompanyName" ""
-            npx rcedit $mainExe --set-version-string "LegalCopyright" ""
-            npx rcedit $mainExe --set-version-string "OriginalFilename" ""
-            npx rcedit $mainExe --set-product-version "0.0.0"
-            npx rcedit $mainExe --set-file-version "0.0.0"
-            Write-Host "Done: $mainExe"
-          }
+          npm install @electron/rcedit
+          node scripts/strip_metadata.js
 
       # 上传安装包到 Artifacts (供后续统一发布任务下载)
       - name: Upload Release Artifacts
