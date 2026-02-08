@@ -4,6 +4,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号 (例如: v4.1.10)"
+        required: true
+        default: "v4.1.10"
 
 jobs:
   build-tauri:
@@ -109,8 +114,9 @@ jobs:
       - name: Create or Update GitHub Release
         uses: ncipollo/release-action@v1
         with:
+          tag: ${{ github.event.inputs.version || github.ref_name }}
           allowUpdates: true
-          name: "Antigravity Tools ${{ github.ref_name }}"
+          name: "Antigravity Tools ${{ github.event.inputs.version || github.ref_name }}"
           bodyFile: "release_notes.md"
           token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: "all-artifacts/**/*"
