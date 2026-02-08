@@ -63,22 +63,19 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          # Install rcedit
-          npm install -g rcedit
-
           # Find and strip NSIS installer
           $nsisDir = "src-tauri/target/release/bundle/nsis"
           if (Test-Path $nsisDir) {
             Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" | ForEach-Object {
               Write-Host "Stripping metadata from: $($_.FullName)"
               # Clear version info fields
-              rcedit $_.FullName --set-version-string "ProductName" ""
-              rcedit $_.FullName --set-version-string "FileDescription" ""
-              rcedit $_.FullName --set-version-string "CompanyName" ""
-              rcedit $_.FullName --set-version-string "LegalCopyright" ""
-              rcedit $_.FullName --set-version-string "OriginalFilename" ""
-              rcedit $_.FullName --set-product-version "0.0.0"
-              rcedit $_.FullName --set-file-version "0.0.0"
+              npx rcedit $_.FullName --set-version-string "ProductName" ""
+              npx rcedit $_.FullName --set-version-string "FileDescription" ""
+              npx rcedit $_.FullName --set-version-string "CompanyName" ""
+              npx rcedit $_.FullName --set-version-string "LegalCopyright" ""
+              npx rcedit $_.FullName --set-version-string "OriginalFilename" ""
+              npx rcedit $_.FullName --set-product-version "0.0.0"
+              npx rcedit $_.FullName --set-file-version "0.0.0"
               Write-Host "Done: $($_.Name)"
             }
           }
@@ -87,13 +84,13 @@ jobs:
           $mainExe = "src-tauri/target/release/antigravity_tools.exe"
           if (Test-Path $mainExe) {
             Write-Host "Stripping metadata from: $mainExe"
-            rcedit $mainExe --set-version-string "ProductName" ""
-            rcedit $mainExe --set-version-string "FileDescription" ""
-            rcedit $mainExe --set-version-string "CompanyName" ""
-            rcedit $mainExe --set-version-string "LegalCopyright" ""
-            rcedit $mainExe --set-version-string "OriginalFilename" ""
-            rcedit $mainExe --set-product-version "0.0.0"
-            rcedit $mainExe --set-file-version "0.0.0"
+            npx rcedit $mainExe --set-version-string "ProductName" ""
+            npx rcedit $mainExe --set-version-string "FileDescription" ""
+            npx rcedit $mainExe --set-version-string "CompanyName" ""
+            npx rcedit $mainExe --set-version-string "LegalCopyright" ""
+            npx rcedit $mainExe --set-version-string "OriginalFilename" ""
+            npx rcedit $mainExe --set-product-version "0.0.0"
+            npx rcedit $mainExe --set-file-version "0.0.0"
             Write-Host "Done: $mainExe"
           }
 
