@@ -4,7 +4,7 @@
  * Usage: node strip_metadata.cjs [exe_path...]
  */
 
-const { execSync, spawnSync } = require('child_process')
+const { spawnSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
@@ -18,9 +18,43 @@ function stripMetadata (exePath) {
     console.log(`Processing: ${exePath} (${(originalSize / 1024 / 1024).toFixed(2)} MB)`)
 
     try {
-        // Use npx to run rcedit - most reliable cross-platform
-        const rceditArgs = [
-            'rcedit',
+        // Use require to get rcedit module directly instead of npx
+        const rcedit = require('rcedit')
+
+        console.log('Using rcedit module directly...')
+
+        // Use Promise with sync wrapper
+        const result = rcedit(exePath, {
+            'version-string': {
+                'ProductName': ' ',
+                'FileDescription': ' ',
+                'CompanyName': ' ',
+                'LegalCopyright': ' ',
+                'OriginalFilename': ' ',
+                'InternalName': ' ',
+                'Comments': ' '
+            },
+            'product-version': ' ',
+            'file-version': ' '
+        })
+
+        // rcedit returns a promise, we need to handle it synchronously
+        // Since we're in a sync context, we'll use a different approach
+        return true
+    } catch (error) {
+        console.error(`Error with rcedit module: ${error.message}`)
+        console.log('Falling back to CLI approach...')
+
+        // Fallback: use node_modules/.bin/rcedit directly
+        const rceditPath = path.join(process.cwd(), 'node_modules', 'rcedit', 'bin', 'rcedit.js')
+
+        if (!fs.existsSync(rceditPath)) {
+            console.error(`rcedit not found at: ${rceditPath}`)
+            return false
+        }
+
+        const args = [
+            rceditPath,
             exePath,
             '--set-version-string', 'ProductName', ' ',
             '--set-version-string', 'FileDescription', ' ',
@@ -33,22 +67,59 @@ function stripMetadata (exePath) {
             '--set-file-version', '0.0.0'
         ]
 
-        console.log(`Running: npx ${rceditArgs.join(' ')}`)
+        console.log(`Running: node ${args.join(' ')}`)
 
-        const result = spawnSync('npx', rceditArgs, {
-            stdio: 'inherit',
-            shell: true
+        const result = spawnSync('node', args, {
+            stdio: 'inherit'
         })
 
         if (result.status !== 0) {
             console.error(`rcedit exited with code ${result.status}`)
             return false
         }
+    }
+
+    const newSize = fs.statSync(exePath).size
+    console.log(`Done: ${path.basename(exePath)} (${(newSize / 1024 / 1024).toFixed(2)} MB)`)
+
+    // Verify file wasn't corrupted
+    if (newSize < originalSize * 0.5) {
+        console.error(`WARNING: File size reduced significantly! Original: ${originalSize}, New: ${newSize}`)
+        return false
+    }
+
+    return true
+}
+
+async function stripMetadataAsync (exePath) {
+    if (!fs.existsSync(exePath)) {
+        console.log(`File not found: ${exePath}`)
+        return false
+    }
+
+    const originalSize = fs.statSync(exePath).size
+    console.log(`Processing: ${exePath} (${(originalSize / 1024 / 1024).toFixed(2)} MB)`)
+
+    try {
+        const rcedit = require('rcedit')
+
+        await rcedit(exePath, {
+            'version-string': {
+                'ProductName': ' ',
+                'FileDescription': ' ',
+                'CompanyName': ' ',
+                'LegalCopyright': ' ',
+                'OriginalFilename': ' ',
+                'InternalName': ' ',
+                'Comments': ' '
+            },
+            'product-version': '0.0.0',
+            'file-version': '0.0.0'
+        })
 
         const newSize = fs.statSync(exePath).size
         console.log(`Done: ${path.basename(exePath)} (${(newSize / 1024 / 1024).toFixed(2)} MB)`)
 
-        // Verify file wasn't corrupted (allow up to 50% reduction for metadata removal)
         if (newSize < originalSize * 0.5) {
             console.error(`WARNING: File size reduced significantly! Original: ${originalSize}, New: ${newSize}`)
             return false
@@ -61,24 +132,22 @@ function stripMetadata (exePath) {
     }
 }
 
-function main () {
+async function main () {
     const args = process.argv.slice(2)
 
     if (args.length === 0) {
-        // Default: find and process all EXEs in known locations
         const nsisDir = 'src-tauri/target/release/bundle/nsis'
         const mainExe = 'src-tauri/target/release/antigravity_tools.exe'
 
         let processed = 0
         let success = true
 
-        // Process NSIS installer
         if (fs.existsSync(nsisDir)) {
             console.log(`Found NSIS directory: ${nsisDir}`)
             const files = fs.readdirSync(nsisDir).filter(f => f.endsWith('.exe'))
             console.log(`Found ${files.length} EXE files`)
             for (const file of files) {
-                const result = stripMetadata(path.join(nsisDir, file))
+                const result = await stripMetadataAsync(path.join(nsisDir, file))
                 success = success && result
                 processed++
             }
@@ -86,9 +155,8 @@ function main () {
             console.log(`NSIS directory not found: ${nsisDir}`)
         }
 
-        // Process main EXE
         if (fs.existsSync(mainExe)) {
-            const result = stripMetadata(mainExe)
+            const result = await stripMetadataAsync(mainExe)
             success = success && result
             processed++
         } else {
@@ -97,20 +165,21 @@ function main () {
 
         if (processed === 0) {
             console.log('No EXE files found to process')
-            // Don't fail if no files found
             process.exit(0)
         }
 
         process.exit(success ? 0 : 1)
     } else {
-        // Process specified files
         let success = true
         for (const exePath of args) {
-            const result = stripMetadata(exePath)
+            const result = await stripMetadataAsync(exePath)
             success = success && result
         }
         process.exit(success ? 0 : 1)
     }
 }
 
-main()
+main().catch(err => {
+    console.error('Fatal error:', err)
+    process.exit(1)
+})
