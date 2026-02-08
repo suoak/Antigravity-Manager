@@ -67,9 +67,7 @@ jobs:
       - name: Strip Windows EXE metadata
         if: matrix.platform == 'windows-latest'
         shell: pwsh
-        run: |
-          npm install rcedit --legacy-peer-deps
-          node scripts/strip_metadata.cjs
+        run: node scripts/strip_metadata.cjs
 
       # 上传安装包到 Artifacts (供后续统一发布任务下载)
       - name: Upload Release Artifacts
