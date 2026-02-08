@@ -76,7 +76,8 @@ jobs:
           echo "Detected architecture: $ARCH"
           
           # 进入产物目录
-          cd src-tauri/target/*/release/bundle/macos/
+          BUNDLE_DIR=$(find src-tauri/target -type d -path "*/release/bundle/macos" | head -n 1)
+
           
           # 重命名 .app.tar.gz 和 .sig
           if [ -f "Antigravity Tools.app.tar.gz" ]; then
