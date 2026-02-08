@@ -34,8 +34,8 @@ function stripMetadata (exePath) {
                 'InternalName': ' ',
                 'Comments': ' '
             },
-            'product-version': ' ',
-            'file-version': ' '
+            'product-version': '',
+            'file-version': ''
         })
 
         // rcedit returns a promise, we need to handle it synchronously
