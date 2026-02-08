@@ -4,6 +4,23 @@ use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
 // ============================================================================
+// 辅助工具函数
+// ============================================================================
+
+/// 标准化代理 URL，如果缺失协议则默认补全 http://
+pub fn normalize_proxy_url(url: &str) -> String {
+    let url = url.trim();
+    if url.is_empty() {
+        return String::new();
+    }
+    if !url.contains("://") {
+        format!("http://{}", url)
+    } else {
+        url.to_string()
+    }
+}
+
+// ============================================================================
 // 全局 Thinking Budget 配置存储
 // 用于在 request transform 函数中访问配置（无需修改函数签名）
 // ============================================================================
@@ -74,6 +91,34 @@ pub fn update_global_system_prompt_config(config: GlobalSystemPromptConfig) {
             config.enabled,
             config.content.len()
         );
+    }
+}
+
+// ============================================================================
+// 全局图像思维模式配置存储
+// ============================================================================
+static GLOBAL_IMAGE_THINKING_MODE: OnceLock<RwLock<String>> = OnceLock::new();
+
+pub fn get_image_thinking_mode() -> String {
+    GLOBAL_IMAGE_THINKING_MODE
+        .get()
+        .and_then(|lock| lock.read().ok())
+        .map(|s| s.clone())
+        .unwrap_or_else(|| "enabled".to_string())
+}
+
+pub fn update_image_thinking_mode(mode: Option<String>) {
+    let val = mode.unwrap_or_else(|| "enabled".to_string());
+    if let Some(lock) = GLOBAL_IMAGE_THINKING_MODE.get() {
+        if let Ok(mut cfg) = lock.write() {
+            if *cfg != val {
+                *cfg = val.clone();
+                tracing::info!("[Image-Thinking] Global config updated: {}", val);
+            }
+        }
+    } else {
+        let _ = GLOBAL_IMAGE_THINKING_MODE.set(RwLock::new(val.clone()));
+        tracing::info!("[Image-Thinking] Global config initialized: {}", val);
     }
 }
 
@@ -496,6 +541,12 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub global_system_prompt: GlobalSystemPromptConfig,
 
+    /// 图像思维模式配置
+    /// - enabled: 保留思维链 (默认)
+    /// - disabled: 移除思维链 (画质优先)
+    #[serde(default)]
+    pub image_thinking_mode: Option<String>,
+
     /// 代理池配置
     #[serde(default)]
     pub proxy_pool: ProxyPoolConfig,
@@ -535,6 +586,7 @@ impl Default for ProxyConfig {
             thinking_budget: ThinkingBudgetConfig::default(),
             global_system_prompt: GlobalSystemPromptConfig::default(),
             proxy_pool: ProxyPoolConfig::default(),
+            image_thinking_mode: None,
         }
     }
 }
@@ -642,4 +694,26 @@ pub enum ProxySelectionStrategy {
     LeastConnections,
     /// 加权轮询: 根据健康状态和优先级
     WeightedRoundRobin,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_proxy_url() {
+        // 测试已有协议
+        assert_eq!(normalize_proxy_url("http://127.0.0.1:7890"), "http://127.0.0.1:7890");
+        assert_eq!(normalize_proxy_url("https://proxy.com"), "https://proxy.com");
+        assert_eq!(normalize_proxy_url("socks5://127.0.0.1:1080"), "socks5://127.0.0.1:1080");
+        assert_eq!(normalize_proxy_url("socks5h://127.0.0.1:1080"), "socks5h://127.0.0.1:1080");
+
+        // 测试缺少协议（默认补全 http://）
+        assert_eq!(normalize_proxy_url("127.0.0.1:7890"), "http://127.0.0.1:7890");
+        assert_eq!(normalize_proxy_url("localhost:1082"), "http://localhost:1082");
+
+        // 测试边缘情况
+        assert_eq!(normalize_proxy_url(""), "");
+        assert_eq!(normalize_proxy_url("   "), "");
+    }
 }
