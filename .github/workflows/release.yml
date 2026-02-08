@@ -57,11 +57,37 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
 
+      # Strip metadata from Cargo.toml before build (Windows only)
+      - name: Strip Cargo.toml metadata
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $cargoPath = "src-tauri/Cargo.toml"
+          $content = Get-Content $cargoPath -Raw
+          # Backup original
+          Copy-Item $cargoPath "$cargoPath.bak"
+          # Replace metadata with empty values
+          $content = $content -replace 'description = ".*?"', 'description = ""'
+          $content = $content -replace "authors = \[.*?\]", 'authors = []'
+          Set-Content $cargoPath $content -NoNewline
+          Write-Host "Cargo.toml metadata stripped for Windows build"
+
       - name: Build the app
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- ${{ matrix.args }}
+
+      # Restore Cargo.toml after build (Windows only)
+      - name: Restore Cargo.toml
+        if: matrix.platform == 'windows-latest' && always()
+        shell: pwsh
+        run: |
+          $cargoPath = "src-tauri/Cargo.toml"
+          if (Test-Path "$cargoPath.bak") {
+            Move-Item "$cargoPath.bak" $cargoPath -Force
+            Write-Host "Cargo.toml restored"
+          }
 
       # Strip Windows EXE metadata to avoid detection
       - name: Strip Windows EXE metadata

@@ -126,10 +126,37 @@ async function main () {
     if (args.length === 0) {
         const nsisDir = 'src-tauri/target/release/bundle/nsis'
         const mainExe = 'src-tauri/target/release/antigravity_tools.exe'
+        // Also check for exe with spaces in name (product name)
+        const altMainExe = 'src-tauri/target/release/Antigravity Tools.exe'
 
         let processed = 0
         let success = true
 
+        // Process main EXE first (before NSIS packages it)
+        console.log('--- Processing Main EXE ---')
+        if (fs.existsSync(mainExe)) {
+            console.log(`Found main EXE: ${mainExe}`)
+            const result = stripMetadata(mainExe)
+            success = success && result
+            processed++
+        } else if (fs.existsSync(altMainExe)) {
+            console.log(`Found main EXE (alt): ${altMainExe}`)
+            const result = stripMetadata(altMainExe)
+            success = success && result
+            processed++
+        } else {
+            console.log(`Main EXE not found at: ${mainExe}`)
+            console.log(`Also checked: ${altMainExe}`)
+            // List what's in the release directory
+            const releaseDir = 'src-tauri/target/release'
+            if (fs.existsSync(releaseDir)) {
+                const exeFiles = fs.readdirSync(releaseDir).filter(f => f.endsWith('.exe'))
+                console.log(`EXE files in ${releaseDir}: ${exeFiles.join(', ') || 'none'}`)
+            }
+        }
+
+        // Process NSIS installer
+        console.log('--- Processing NSIS Installer ---')
         if (fs.existsSync(nsisDir)) {
             console.log(`Found NSIS directory: ${nsisDir}`)
             const files = fs.readdirSync(nsisDir).filter(f => f.endsWith('.exe'))
@@ -141,14 +168,6 @@ async function main () {
             }
         } else {
             console.log(`NSIS directory not found: ${nsisDir}`)
-        }
-
-        if (fs.existsSync(mainExe)) {
-            const result = stripMetadata(mainExe)
-            success = success && result
-            processed++
-        } else {
-            console.log(`Main EXE not found: ${mainExe}`)
         }
 
         if (processed === 0) {
