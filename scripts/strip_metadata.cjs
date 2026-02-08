@@ -4,7 +4,7 @@
  * Usage: node strip_metadata.js <exe_path>
  */
 
-const rcedit = require('@electron/rcedit')
+const rcedit = require('rcedit')
 const path = require('path')
 const fs = require('fs')
 
