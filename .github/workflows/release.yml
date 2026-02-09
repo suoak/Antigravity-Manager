@@ -66,8 +66,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --no-bundle ${{ matrix.args }}
 
-      # Step 2: 剥离 EXE 元数据
-      - name: Strip Windows EXE metadata
+      # Step 2: 剥离主程序 EXE 元数据
+      - name: Strip main EXE metadata
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: node scripts/strip_metadata.cjs
@@ -76,6 +76,12 @@ jobs:
       - name: Bundle NSIS installer
         if: matrix.platform == 'windows-latest'
         run: npm run tauri bundle -- --bundles nsis ${{ matrix.args }}
+
+      # Step 4: 剥离 NSIS 安装包元数据
+      - name: Strip NSIS installer metadata
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: node scripts/strip_metadata.cjs
 
       # macOS/Linux: 正常构建
       - name: Build app (full)
