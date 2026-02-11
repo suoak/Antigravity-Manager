@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> 专业的 AI 账号管理与协议反代系统 (v4.1.13)
+> 专业级 AI 账号管理与协议代理系统 (v4.1.14)
 <div align="center">
   <img src="public/icon.png" alt="Antigravity Logo" width="120" height="120" style="border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
 
@@ -8,7 +8,7 @@
   
   <p>
     <a href="https://github.com/lbjlaq/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-4.1.13-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-4.1.14-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -242,10 +242,20 @@ claude
 
 ### 如何接入 OpenCode?
 1.  进入 **API 反代**页面 → **外部 Providers** → 点击 **OpenCode Sync** 卡片。
-2.  点击 **Sync** 按钮，将自动生成 `~/.config/opencode/opencode.json` 配置文件（包含代理 baseURL 与 apiKey，支持 Anthropic/Google 双 Provider）。
-3.  可选：勾选 **Sync accounts** 可同时导出 `antigravity-accounts.json` 账号列表，供 OpenCode 插件直接导入使用。
+2.  点击 **Sync** 按钮，将自动生成 `~/.config/opencode/opencode.json` 配置文件：
+    - 创建独立 provider `antigravity-manager`（不覆盖 google/anthropic 原生配置）
+    - 可选：勾选 **Sync accounts** 导出 `antigravity-accounts.json`（plugin-compatible v3 格式），供 OpenCode 插件直接导入
+3.  点击 **Clear Config** 可一键清除 Manager 配置并清理 legacy 残留；点击 **Restore** 可从备份恢复。
 4.  Windows 用户路径为 `C:\Users\<用户名>\.config\opencode\`（与 `~/.config/opencode` 规则一致）。
-5.  如需回滚，可点击 **Restore** 按钮从备份恢复之前的配置。
+
+**快速验证命令：**
+```bash
+# 测试 antigravity-manager provider（支持 --variant）
+opencode run "test" --model antigravity-manager/claude-sonnet-4-5-thinking --variant high
+
+# 若已安装 opencode-antigravity-auth 插件，验证 google provider 仍可独立工作
+opencode run "test" --model google/antigravity-claude-sonnet-4-5-thinking --variant max
+```
 
 ### 如何接入 Kilo Code?
 1.  **协议选择**: 建议优先使用 **Gemini 协议**。
@@ -334,7 +344,42 @@ curl -X POST http://127.0.0.1:8045/v1/messages \
   }'
 ```
 
-**参数优先级**: 请求体参数 > 模型后缀
+```
+
+**参数优先级**: `imageSize` 参数 > `quality` 参数 > 模型后缀
+
+**✨ 新增 `imageSize` 参数支持**:
+
+除了 `quality` 参数外,现在还支持直接使用 Gemini 原生的 `imageSize` 参数:
+
+```python
+# 使用 imageSize 参数(最高优先级)
+response = client.chat.completions.create(
+    model="gemini-3-pro-image",
+    size="16:9",           # 宽高比
+    imageSize="4K",        # ✨ 直接指定分辨率: "1K" | "2K" | "4K"
+    messages=[{"role": "user", "content": "一座未来主义风格的城市"}]
+)
+```
+
+```bash
+# Claude Messages API 也支持 imageSize
+curl -X POST http://127.0.0.1:8045/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: sk-antigravity" \
+  -d '{
+    "model": "gemini-3-pro-image",
+    "size": "1280x720",
+    "imageSize": "4K",
+    "messages": [{"role": "user", "content": "一只可爱的猫咪"}]
+  }'
+```
+
+**参数说明**:
+- **`imageSize`**: 直接指定分辨率 (`"1K"` / `"2K"` / `"4K"`)
+- **`quality`**: 通过质量等级推断分辨率 (`"standard"` → 1K, `"medium"` → 2K, `"hd"` → 4K)
+- **优先级**: 如果同时指定 `imageSize` 和 `quality`,系统会优先使用 `imageSize`
+
 
 #### 方式三：Chat 接口 + 模型后缀
 ```python
@@ -368,7 +413,32 @@ response = client.chat.completions.create(
 ## 📝 开发者与社区
 
 *   **版本演进 (Changelog)**:
-    *   **v4.1.13 (2026-02-10)**:
+    *   **v4.1.14 (2026-02-11)**:
+        -   **[核心修复] Cloudflared 公网访问设置持久化 (Issue #1805)**:
+            -   **设置记忆**: 修复了 Cloudflared (CF Tunnel) 的 Token、隧道模式及 HTTP/2 设置在应用重启后丢失的问题。
+            -   **热更新同步**: 实现了设置的实时持久化。现在切换隧道模式、修改 Token (失焦同步) 或切换 HTTP/2 选项时，配置都会立即保存，确保重启后恢复如初。
+        -   **[核心修复] 修复 Warmup 过程中的 403 禁用标记 (PR #1803)**:
+            -   **禁用识别**: 修复了账号在 Warmup (预热) 过程中返回 403 错误时未被标记为 `is_forbidden` 的问题。
+            -   **自动跳过**: 现在 Warmup 过程中检测到 403 将立即标记并持久化账号禁用状态，并在后续的调度、预热和配额检查中自动跳过该账号，避免无效请求。
+        -   **[UI 优化] 迷你视图 (Mini View) 状态显示与交互增强 (PR #1816)**:
+            -   **状态指示点**: 在迷你视图底部新增了请求状态圆点。成功 (200-399) 显示为绿色，失败显示为红色，直观反馈最近一次请求结果。
+            -   **模型名称回退**: 优化了模型名称显示逻辑。当 `mapped_model` 为空时，自动回退显示原始模型 ID 而非 "Unknown"，提升信息透明度。
+            -   **刷新动画优化**: 改进了刷新按钮的动画效果，使旋转动画仅作用于 `RefreshCw` 图标本身，交互更加细腻。
+        -   **[核心功能] Claude 4.6 Adaptive Thinking 模式支持**:
+            -   **Dynamic Effort**: 全面支持 `effort` 参数 (low/medium/high)，允许用户动态调整模型的思考深度与预算。
+            -   **Token 限制自适应**: 修复了 Adaptive 模式下 `maxOutputTokens` 未能正确感知 Budget 导致被截断的问题，确保长思维链不被腰斩。
+        -   **[文档更新] 新增 Adaptive 模式测试用例**:
+            -   提供了 `docs/adaptive_mode_test_examples.md`，涵盖多轮对话、复杂任务场景及 Budget 模式切换的完整验证指南。
+        -   **[核心功能] 图片生成 imageSize 参数支持**:
+            -   **直接参数支持**: 新增对 Gemini 原生 `imageSize` 参数的直接支持,可在所有协议(OpenAI/Claude/Gemini)中使用。
+            -   **参数优先级**: 实现了清晰的参数优先级逻辑:`imageSize` 参数 > `quality` 参数推断 > 模型后缀推断。
+            -   **全协议兼容**: OpenAI Chat API、Claude Messages API 和 Gemini 原生协议均支持通过 `imageSize` 字段直接指定分辨率("1K"/"2K"/"4K")。
+            -   **向后兼容**: 完全兼容现有的 `quality` 参数和模型后缀方式,不影响现有代码。
+        -   **[核心功能] Opencode 提供商隔离与清理工作流 (PR #1820)**:
+            -   **隔离同步逻辑**: 实现 Opencode 提供商的独立同步机制,防止状态污染,确保数据纯净。
+            -   **清理工作流**: 新增资源清理工作流,优化资源管理,提升系统运行效率。
+            -   **稳定性增强**: 增强了同步过程的稳定性和可靠性。
+    *   **v4.1.14 (2026-02-11)**:
         -   **[核心功能] Homebrew Cask 安装检测与支持 (PR #1673)**:
             -   **应用升级**: 新增了对 Homebrew Cask 安装的检测逻辑。如果应用是通过 Cask 安装的，现在可以直接在应用内触发 `brew upgrade --cask` 流程，实现无缝升级体验。
         -   **[核心修复] Gemini 图像生成配额保护 (PR #1764)**:
@@ -731,7 +801,7 @@ response = client.chat.completions.create(
             -   **逻辑优化**: 优化了配置加载流程，确保首次生成的随机 Key 被正确持久化；同时也确保了 Headless 模式下环境变量（如 `ABV_API_KEY`）的覆盖能够被前端正确获取。
         -   **[核心功能] 可配置思考预算 (Thinking Budget) (PR #1456)**:
             -   **预算控制**: 在系统设置中新增了“思考预算”配置项。
-            -   **智能适配**: 支持为 Claude 3.7+ 和 Gemini 2.0 Flash Thinking 等模型自定义最大思考 token 限制。
+            -   **智能适配**: 支持为 Claude 4.6+ 和 Gemini 2.0 Flash Thinking 等模型自定义最大思考 token 限制。
             -   **默认优化**: 默认值设置为智能适配模式，确保在大多数场景下不仅能获得完整思考过程，又能避免触发上游 budget 限制。
     *   **v4.0.13 (2026-02-02)**:
         -   **[核心优化] 负载均衡算法升级 (P2C Algorithm) (PR #1433)**:
@@ -1249,7 +1319,7 @@ response = client.chat.completions.create(
             -   **僵尸进程清理**: 优化了 `start.sh` 中的 cleanup 逻辑，改用 `pkill` 精准查杀 Xtigervnc 和 websockify 进程，并清理 `/tmp/.X11-unix` 锁文件，解决了重启后 VNC 无法连接的各种边缘情况。
             -   **健康检查升级**: 将 Healthcheck 检查项扩展到 websockify 和主程序，确保容器状态更真实地反映服务可用性。
             -   **重大修复**: 修复了 OpenAI 协议请求返回 404 的问题，并解决了 Codex (`/v1/responses`) 接收复杂对象数组 `input` 或 `apply_patch` 等自定义工具（缺失 Schema）时导致上游返回 400 (`INVALID_ARGUMENT`) 的兼容性缺陷。
-            -   **思维模型优化**: 解决了 Claude 3.7 Thinking 模型在历史消息缺失思维链时强制报错的问题，实现了智能协议降级与占位块注入。
+            -   **思维模型优化**: 解决了 Claude 4.6 Thinking 模型在历史消息缺失思维链时强制报错的问题，实现了智能协议降级与占位块注入。
             -   **协议补全**: 补全了 OpenAI Legacy 接口的 Token 统计响应与 Header 注入，支持 `input_text` 类型内容块，并将 `developer` 角色适配为系统指令。
             -   **requestId 统一**: 统一所有 OpenAI 路径下的 `requestId` 前缀为 `agent-`，解决部分客户端的 ID 识别问题。
         -   **[核心修复] JSON Schema 数组递归清理修复 (解决 Gemini API 400 错误)**:

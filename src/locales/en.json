@@ -537,9 +537,17 @@
             "mode": {
                 "auto": "Auto Limit",
                 "passthrough": "Passthrough",
-                "custom": "Custom"
+                "custom": "Custom",
+                "adaptive": "Adaptive"
+            },
+            "effort_label": "Thinking Effort",
+            "effort": {
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High"
             },
             "auto_hint": "Auto mode: Automatically caps budget to 24576 for Flash, -thinking suffix models, and Web Search requests.",
+            "adaptive_hint": "Adaptive mode: The model automatically adjusts thinking budget based on task complexity. Recommended for Claude 4.6+.",
             "passthrough_warning": "Passthrough: Uses caller's value directly. High values may cause failures.",
             "custom_value_hint": "Rec: 24576 (Flash) or 51200 (Extended)",
             "tokens": "tokens"
@@ -777,10 +785,15 @@
                 "btn_view": "View Config",
                 "btn_restore": "Restore",
                 "btn_restore_backup": "Restore Backup",
+                "btn_clear": "Clear Config",
+                "clear_confirm_title": "Confirm Clear Config",
+                "clear_confirm_message": "Are you sure you want to clear OpenCode configuration? This will remove the config file.",
                 "toast": {
                     "config_missing": "Please generate API Key and start service first",
                     "sync_success": "OpenCode config synced successfully",
-                    "sync_error": "OpenCode sync failed: {{error}}"
+                    "sync_error": "OpenCode sync failed: {{error}}",
+                    "clear_success": "OpenCode config cleared successfully",
+                    "clear_error": "Failed to clear OpenCode config: {{error}}"
                 },
                 "modal": {
                     "view_title": "OpenCode Config Viewer",
@@ -792,6 +805,7 @@
                 "restore_backup_confirm": "Are you sure you want to restore OpenCode config from backup?",
                 "modal_title": "Select OpenCode Models",
                 "select_models": "Select models to sync",
+                "auth_plugin_warning": "Detected opencode-antigravity-auth plugin. Sync only creates provider antigravity-manager and will not overwrite the google provider/plugin.",
                 "btn_confirm_sync": "Confirm Sync"
             },
             "droid_sync": {
@@ -890,7 +904,10 @@
             "pro_image_1_1": "Image Generation (1:1)",
             "claude_sonnet": "Code Reasoning",
             "claude_sonnet_thinking": "Chain of Thought",
-            "claude_opus_thinking": "Strongest Thinking"
+            "claude_opus_thinking": "Strongest Thinking",
+            "gemini_2_5_flash": "Flash Model (2.5)",
+            "gemini_2_5_pro": "High Performance (2.5)",
+            "claude_4_5": "Latest Reasoning"
         },
         "mapping": {
             "title": "Claude Code Model Mapping",
@@ -915,7 +932,7 @@
         },
         "router": {
             "title": "Model Router",
-            "subtitle": "Route models by series or add custom exact mappings.\nNote: Native Claude pass-through models (e.g. claude-opus-4-5-thinking) bypass series groups by default. Use \"Expert Custom Routing\" to override.",
+            "subtitle": "Route models by series or add custom exact mappings.\nNote: Native Claude pass-through models (e.g. claude-opus-4-6-thinking) bypass series groups by default. Use \"Expert Custom Routing\" to override.",
             "subtitle_simple": "Customize model routing with wildcards or exact mappings",
             "background_task_title": "Background Task Model",
             "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
@@ -957,7 +974,7 @@
             "groups": {
                 "claude_45": {
                     "name": "Claude 4.6 TK Series",
-                    "desc": "Opus 4.6 TK (Thinking)"
+                    "desc": "Opus 4.5 TK (Thinking)"
                 },
                 "claude_35": {
                     "name": "Claude 3.5 Series",
