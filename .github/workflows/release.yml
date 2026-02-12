@@ -74,6 +74,8 @@ jobs:
       # Step 3: 单独打包 NSIS
       - name: Bundle NSIS installer
         if: matrix.platform == 'windows-latest'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: npm run tauri bundle -- --bundles nsis ${{ matrix.args }}
 
       # Step 4: 剥离 NSIS 安装包元数据
