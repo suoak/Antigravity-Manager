@@ -5,6 +5,10 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      version:
+        description: "版本号 (例如: v4.1.10)"
+        required: true
+        default: "v4.1.10"
 
 jobs:
   build-tauri:
@@ -53,13 +57,41 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build the app
+      # Windows: 分步构建以便在打包前剥离元数据
+      # Step 1: 只编译不打包
+      - name: Build app (no bundle)
+        if: matrix.platform == 'windows-latest'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- --no-bundle ${{ matrix.args }}
+
+      # Step 2: 剥离主程序 EXE 元数据
+      - name: Strip main EXE metadata
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: node scripts/strip_metadata.cjs
+
+      # Step 3: 单独打包 NSIS
+      - name: Bundle NSIS installer
+        if: matrix.platform == 'windows-latest'
+        run: npm run tauri bundle -- --bundles nsis ${{ matrix.args }}
+
+      # Step 4: 剥离 NSIS 安装包元数据
+      - name: Strip NSIS installer metadata
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: node scripts/strip_metadata.cjs
+
+      # macOS/Linux: 正常构建
+      - name: Build app (full)
+        if: matrix.platform != 'windows-latest'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- ${{ matrix.args }}
 
-      # 3. 处理 macOS 架构重命名冲突 (解决 422 Already Exists)
+      # 处理 macOS 架构重命名冲突 (解决 422 Already Exists)
       - name: Rename macOS assets for architecture
         if: matrix.platform == 'macos-latest'
         run: |
@@ -73,31 +105,31 @@ jobs:
           else
             ARCH="unknown"
           fi
-          
+
           echo "Detected architecture: $ARCH"
-          
+
           # 进入产物目录
           cd src-tauri/target/*/release/bundle/macos/
-          
+
           # 重命名 .app.tar.gz 和 .sig
           if [ -f "Antigravity Tools.app.tar.gz" ]; then
             mv "Antigravity Tools.app.tar.gz" "Antigravity Tools_${ARCH}.app.tar.gz"
             mv "Antigravity Tools.app.tar.gz.sig" "Antigravity Tools_${ARCH}.app.tar.gz.sig"
             echo "Renamed assets to append Arch: $ARCH"
           fi
-          
+
           # 更新对应的 updater.json (指向重命名后的文件)
           UPDATER_JSON="../../../updater/install.json"
           if [ ! -f "$UPDATER_JSON" ]; then
              UPDATER_JSON=$(find ../../../updater -name "*.json" | head -n 1)
           fi
-          
+
           if [ -f "$UPDATER_JSON" ]; then
             echo "Updating $UPDATER_JSON to use renamed assets..."
             sed -i '' "s/Antigravity%20Tools.app.tar.gz/Antigravity%20Tools_${ARCH}.app.tar.gz/g" "$UPDATER_JSON"
           fi
 
-      # 1. 上传 updater.json 到 Artifacts (供后续合并使用)
+      # 上传 updater.json 到 Artifacts (供后续合并使用)
       - name: Upload updater json
         uses: actions/upload-artifact@v4
         with:
@@ -105,7 +137,7 @@ jobs:
           path: src-tauri/target/**/release/bundle/updater/*.json
           if-no-files-found: warn
 
-      # 2. 上传安装包到 Artifacts (供后续统一发布任务下载)
+      # 上传安装包到 Artifacts (供后续统一发布任务下载)
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -125,7 +157,7 @@ jobs:
             src-tauri/target/**/release/bundle/msi/*.sig
             src-tauri/target/**/release/bundle/nsis/*.sig
             src-tauri/target/**/release/bundle/rpm/*.sig
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
   publish-release:
     needs: build-tauri
@@ -136,7 +168,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 下载所有构建产物 (仅限 release 相关的 assets 和 updater)
+      # 下载所有构建产物
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -146,7 +178,7 @@ jobs:
 
       - name: Extract Release Notes
         run: |
-          VERSION="${{ github.ref_name }}"
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
           echo "Extracting release notes for version $VERSION"
           awk -v ver="$VERSION" '
             BEGIN { capture=0 }
@@ -158,20 +190,26 @@ jobs:
             echo "See the assets to download this version and install." > release_notes.md
           fi
 
+      - name: Build updater.json from signatures
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
           VER="${VERSION#v}"
 
+          # Helper: read signature content from .sig file in artifacts
+          read_sig() {
             local pattern="$1"
             local sig_file
-              jq -s '.[0] * .[1]' merged_updater.json "$json_file" > temp.json && mv temp.json merged_updater.json
+            sig_file=$(find all-artifacts -name "$pattern" -type f 2>/dev/null | head -1)
+            if [ -n "$sig_file" ] && [ -f "$sig_file" ]; then
+              cat "$sig_file"
             else
+              echo ""
             fi
           }
-          done
+
           # Read signatures for each platform
           MACOS_AARCH64_SIG=$(read_sig "*_aarch64.app.tar.gz.sig")
           MACOS_X64_SIG=$(read_sig "*_x64.app.tar.gz.sig")
@@ -214,15 +252,17 @@ jobs:
               }
             }' > updater.json
 
+          echo "Generated updater.json:"
           cat updater.json
 
-      # 使用 ncipollo/release-action 进行统一发布，支持稳健覆盖
+      # 使用 ncipollo/release-action 进行统一发布
       - name: Create or Update GitHub Release
         uses: ncipollo/release-action@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
+          tag: ${{ github.event.inputs.version || github.ref_name }}
           allowUpdates: true
-          name: "Antigravity Tools ${{ github.ref_name }}"
+          name: "Antigravity Tools ${{ github.event.inputs.version || github.ref_name }}"
           bodyFile: "release_notes.md"
           token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: "all-artifacts/**/*,updater.json"
