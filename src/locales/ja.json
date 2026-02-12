@@ -780,10 +780,15 @@
         "btn_view": "設定を表示",
         "btn_restore": "復元",
         "btn_restore_backup": "バックアップから復元",
+        "btn_clear": "設定をクリア",
+        "clear_confirm_title": "設定のクリアを確認",
+        "clear_confirm_message": "OpenCode の設定をクリアしてもよろしいですか？設定ファイルが削除されます。",
         "toast": {
           "config_missing": "APIキーを生成し、サービスを先に起動してください",
           "sync_success": "OpenCode の設定を同期しました",
-          "sync_error": "OpenCode の同期に失敗しました: {{error}}"
+          "sync_error": "OpenCode の同期に失敗しました: {{error}}",
+          "clear_success": "OpenCode の設定をクリアしました",
+          "clear_error": "OpenCode の設定クリアに失敗しました: {{error}}"
         },
         "modal": {
           "view_title": "OpenCode 設定ビューアー",
@@ -792,7 +797,8 @@
         "sync_confirm_title": "同期の確認",
         "sync_confirm_message": "現在のプロキシ設定に基づき、OpenCode の設定が上書きされます。続行しますか？",
         "restore_confirm": "OpenCode をデフォルト設定に復元しますか？",
-        "restore_backup_confirm": "バックアップから OpenCode の設定を復元しますか？"
+        "restore_backup_confirm": "バックアップから OpenCode の設定を復元しますか？",
+        "auth_plugin_warning": "opencode-antigravity-auth プラグインを検出しました。同期では antigravity-manager provider のみ作成し、google provider/plugin は上書きしません。"
       },
       "droid_sync": {
         "modal_title": "Droid にモデルを追加",
@@ -915,7 +921,7 @@
     },
     "router": {
       "title": "モデルルーター",
-      "subtitle": "シリーズごとにモデルをルーティングするか、カスタムマッピングを追加します。\n注: ネイティブなClaudeパススルーモデル (例: claude-opus-4-5-thinking) はデフォルトでシリーズグループをバイパスします。上書きするには「エキスパートカスタムルーティング」を使用してください。",
+      "subtitle": "シリーズごとにモデルをルーティングするか、カスタムマッピングを追加します。\n注: ネイティブなClaudeパススルーモデル (例: claude-opus-4-6-thinking) はデフォルトでシリーズグループをバイパスします。上書きするには「エキスパートカスタムルーティング」を使用してください。",
       "subtitle_simple": "ワイルドカードまたは完全一致マッピングでモデルルーティングをカスタマイズ",
       "background_task_title": "バックグラウンドタスク用モデル",
       "background_task_desc": "タイトル生成や要約など、Claude CLIのバックグラウンドタスクに使用されるモデル (デフォルト: gemini-2.5-flash)",
@@ -957,7 +963,7 @@
       "groups": {
         "claude_45": {
           "name": "Claude 4.6 TK シリーズ",
-          "desc": "Opus 4.6 TK"
+          "desc": "Opus 4.5 TK"
         },
         "claude_35": {
           "name": "Claude 3.5 シリーズ",

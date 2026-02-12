@@ -453,6 +453,7 @@ impl TokenManager {
         let project_id = token_obj
             .get("project_id")
             .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
 
         // 【新增】提取订阅等级 (subscription_tier 为 "FREE" | "PRO" | "ULTRA")
@@ -1200,9 +1201,14 @@ impl TokenManager {
                         }
                     }
 
-                    // 确保有 project_id
+                    // 确保有 project_id (filter empty strings to trigger re-fetch)
                     let project_id = if let Some(pid) = &token.project_id {
-                        pid.clone()
+                        if pid.is_empty() { None } else { Some(pid.clone()) }
+                    } else {
+                        None
+                    };
+                    let project_id = if let Some(pid) = project_id {
+                        pid
                     } else {
                         match crate::proxy::project_resolver::fetch_project_id(&token.access_token)
                             .await
@@ -1565,9 +1571,14 @@ impl TokenManager {
                 }
             }
 
-            // 4. 确保有 project_id
+            // 4. 确保有 project_id (filter empty strings to trigger re-fetch)
             let project_id = if let Some(pid) = &token.project_id {
-                pid.clone()
+                if pid.is_empty() { None } else { Some(pid.clone()) }
+            } else {
+                None
+            };
+            let project_id = if let Some(pid) = project_id {
+                pid
             } else {
                 tracing::debug!("账号 {} 缺少 project_id，尝试获取...", token.email);
                 match crate::proxy::project_resolver::fetch_project_id(&token.access_token).await {
@@ -1579,23 +1590,12 @@ impl TokenManager {
                         pid
                     }
                     Err(e) => {
-                        tracing::error!("Failed to fetch project_id for {}: {}", token.email, e);
-                        last_error = Some(format!(
-                            "Failed to fetch project_id for {}: {}",
+                        tracing::warn!(
+                            "Failed to fetch project_id for {}, using fallback: {}",
                             token.email, e
-                        ));
-                        attempted.insert(token.account_id.clone());
-
-                        // 【优化】标记需要清除锁定，避免在循环内加锁
-                        if quota_group != "image_gen" {
-                            if matches!(&last_used_account_id, Some((id, _)) if id == &token.account_id)
-                            {
-                                need_update_last_used =
-                                    Some((String::new(), std::time::Instant::now()));
-                                // 空字符串表示需要清除
-                            }
-                        }
-                        continue;
+                        );
+                        // [FIX #1794] 为 503 问题提供稳定兜底，不跳过该账号
+                        "bamboo-precept-lgxtn".to_string()
                     }
                 }
             };
@@ -1736,7 +1736,9 @@ impl TokenManager {
             None => return Err(format!("未找到账号: {}", email)),
         };
 
-        let project_id = project_id_opt.unwrap_or_else(|| "bamboo-precept-lgxtn".to_string());
+        let project_id = project_id_opt
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "bamboo-precept-lgxtn".to_string());
 
         // 检查是否过期 (提前5分钟)
         if now < timestamp + expires_in - 300 {
