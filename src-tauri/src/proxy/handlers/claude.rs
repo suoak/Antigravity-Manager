@@ -922,7 +922,7 @@ pub async fn handle_messages(
                     "status": status.as_u16(),
                     "upstream_url": upstream_url,
                 });
-                let gemini_stream = debug_logger::wrap_reqwest_stream_with_debug(
+                let gemini_stream = debug_logger::wrap_stream_with_debug(
                     Box::pin(response.bytes_stream()),
                     debug_cfg.clone(),
                     trace_id.clone(),
@@ -931,6 +931,12 @@ pub async fn handle_messages(
                 );
 
                 let current_message_count = request_with_mapped.messages.len();
+
+                // [FIX #MCP] Extract registered tool names for MCP fuzzy matching
+                let registered_tool_names: Vec<String> = request_with_mapped.tools
+                    .as_ref()
+                    .map(|tools| tools.iter().filter_map(|t| t.name.clone()).collect())
+                    .unwrap_or_default();
 
                 // [FIX #530/#529/#859] Enhanced Peek logic to handle heartbeats and slow start
                 // We must pre-read until we find a MEANINGFUL content block (like message_start).
@@ -945,6 +951,7 @@ pub async fn handle_messages(
                     Some(raw_estimated), // [FIX] Pass estimated tokens for calibrator learning
                     current_message_count, // [NEW v4.0.0] Pass message count for rewind detection
                     client_adapter.clone(), // [NEW] Pass client adapter
+                    registered_tool_names, // [FIX #MCP] Pass tool names for fuzzy matching
                 );
 
                 let mut first_data_chunk = None;
